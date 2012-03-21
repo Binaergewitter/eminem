@@ -1,7 +1,7 @@
 #!/bin/sh
 set -euf
 [ "x${1:-}" = "x-h" ] && echo "usage: $0 [-h|live]" && echo "   -h      this message" && echo "   live    do it live" && exit 0
-CFG=binaergewiiter_full.cfg
+CFG=binaergewitter_full.cfg
 SM=BGT
 INPLACE=
 LAST=`sed -n "s/name=$SM\(.*\)/\1/p" $CFG | head -1`
