@@ -10,6 +10,12 @@ CFG=~/binaergewitter_full.cfg
 # PREFIX
 SM=BGT
 
+if ! pidof jackd; then
+	echo "Jackd not running! Bailing out"
+	exit 1
+fi
+
+
 LAST=`sed -n "s/name=$SM\(.*\)/\1/p" $CFG | head -1`
 NOW=`printf %03d $(($LAST+1))`
 if [ "x${1:-}" != "xlive" ]
@@ -18,7 +24,18 @@ then
 	sed -e "s/$SM$LAST/$SM$NOW/" $CFG
 else
 	echo "We are doing it live!"
-	echo "CURRENT SESSION IS $SM$LAST"
+	echo "CURRENT SESSION IS $SM$NOW"
 	sed -i "s/$SM$LAST/$SM$NOW/" $CFG
-	screen sudo darkice -c $CFG
+
+	if pidof darkice; then
+		echo "Darkice already running! Bailing out"
+		exit 1
+	fi
+	tmux start-server
+	tmux new-session -d -s darkice -n darkice "darkice -c $CFG"
+	sleep 2
+	for i in `seq 1 6`;do
+		jack_connect system:capture_$i darkice:left
+		jack_connect system:capture_$i darkice:right
+	done
 fi
