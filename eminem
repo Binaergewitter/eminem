@@ -1,41 +1,83 @@
 #!/bin/zsh
-set -xeuf
-[ "x${1:-}" = "x-h" ] && \
-	echo "usage: $0 [-h|live]" && \
-	echo "   -h      this message" && \
-	echo "   live    do it live" && \
+set -euf
+
+function help () {
+	echo "usage: $0 [help|live|current|reverse|forward|test]"
+	echo "   help    	this message"
+	echo "   live    	do it live"
+	echo "   current    	show current track"
+	echo "   test    	show the current config"
+	echo "   forward 	forward track id by 1"
+	echo "   reverse 	reverse track id by 1"
 	exit 0
+}
+
+function is_running () {
+	pidof $1
+}
+
 # darkice config
 CFG=~/binaergewitter_full.cfg
 # PREFIX
 SM=BGT
 
-if ! pidof jackd; then
-	echo "Jackd not running! Bailing out"
-	exit 1
-fi
+
+
 
 
 LAST=`sed -n "s/name=$SM\(.*\)/\1/p" $CFG | head -1`
 NOW=`printf %03d $(($LAST+1))`
-if [ "x${1:-}" != "xlive" ]
-then 
-	echo "this is what your config looks like"
-	sed -e "s/$SM$LAST/$SM$NOW/" $CFG
-else
-	echo "We are doing it live!"
-	echo "CURRENT SESSION IS $SM$NOW"
-	sed -i "s/$SM$LAST/$SM$NOW/" $CFG
+CMD=${1:-i-am-made-of-stupid}
+case "$CMD" in
+	live)
+		echo "We are doing it live!"
+		echo "CURRENT SESSION IS $SM$NOW"
+		sed -i "s/$SM$LAST/$SM$NOW/" $CFG
 
-	if pidof darkice; then
-		echo "Darkice already running! Bailing out"
-		exit 1
-	fi
-	tmux start-server
-	tmux new-session -d -s darkice -n darkice "darkice -c $CFG"
-	sleep 2
-	for i in `seq 1 6`;do
-		jack_connect system:capture_$i darkice:left
-		jack_connect system:capture_$i darkice:right
-	done
-fi
+		if ! is_running jackd; then
+			echo "Jackd not running! Bailing out"
+			exit 1
+		fi
+
+		if pidof darkice; then
+			echo "Darkice already running! Bailing out"
+			exit 1
+		fi
+		tmux start-server
+		tmux new-session -d -s darkice -n darkice "darkice -c $CFG"
+		sleep 2
+		for i in `seq 1 6`;do
+			jack_connect system:capture_$i darkice:left
+			jack_connect system:capture_$i darkice:right
+		done
+	;;
+	current)
+		cat $CFG
+		echo 
+		echo "This is BGT $LAST"
+	;;
+	reverse)
+		echo "Reversing the track by 1"
+		PREV=`printf %03d $(($LAST-1))`
+		sed -i "s/$SM$LAST/$SM$PREV/" $CFG
+		echo "done"
+		
+	;;
+	forward)
+		echo "Forward the track by 1"
+		sed -i "s/$SM$LAST/$SM$NOW/" $CFG
+		echo "done"
+		
+	;;
+	test)
+		echo "--------- this is what your config will look like -------"
+		sed -e "s/$SM$LAST/$SM$NOW/" $CFG
+	;;
+	help|--help|-h)
+		help
+	;;
+	*)
+		echo "!! unknown agument $CMD"
+		echo
+		help
+esac
